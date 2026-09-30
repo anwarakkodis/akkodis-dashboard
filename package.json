@@ -1,1 +1,10 @@
-{"name":"akkodis-blog-studio","version":"1.0.0","private":true,"scripts":{"dev":"node server.js","start":"node server.js","check":"node --check app.js && node --check server.js"}}
+{
+  "name": "akkodis-blog-studio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "check": "node --check app.js && node --check server.js && node --check account.js && node --check supabase-store.js"
+  }
+}
