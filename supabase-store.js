@@ -6,7 +6,7 @@ function createSupabaseStore({url,key,fetcher=fetch}){
   const target=new URL('/rest/v1/studio_'+table,base);for(const [k,v] of Object.entries(params))target.searchParams.set(k,v);
   const response=await fetcher(target,{method,headers:{apikey:key,'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
   if(!response.ok)throw Error(response.status===409?'Record already exists':'Supabase database request failed ('+response.status+'). Check configuration and run supabase-schema.sql.');
-  return response.status===204?[]:JSON.parse(await response.text()||'[]');
+  const text=await response.text();try{return JSON.parse(text||'[]');}catch{throw Error('The database returned an unexpected response. Please try again shortly.');}
  }
  return {exec(){},prepare(sql){return {async get(...args){return (await this.all(...args))[0];},async all(...args){
   if(sql.startsWith('SELECT u.* FROM sessions')){const sessions=await request('sessions','GET',{token:'eq.'+args[0],expires:'gt.'+args[1]});if(!sessions[0])return [];return request('users','GET',{id:'eq.'+sessions[0].user_id,active:'eq.1'});}

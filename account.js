@@ -1,6 +1,13 @@
 let pendingOwnerId=null;
 let accountUser=null,saveTimer=null,saveChain=Promise.resolve();const pendingPages=new Map();
-async function api(path,options={}){const response=await fetch(path,{...options,headers:{'Content-Type':'application/json'},body:options.body===undefined?undefined:JSON.stringify(options.body)});const result=await response.json();if(!response.ok){if(response.status===401&&accountUser){accountUser=null;$('.editor-shell').hidden=true;$('#loginScreen').hidden=false;$('#loginError').textContent='Your session expired. Sign in again; unsaved work is kept in this tab.';}throw Error(result.error||'Request failed');}return result;}
+async function api(path,options={}){
+ let response;
+ try{response=await fetch(path,{...options,headers:{'Content-Type':'application/json',Accept:'application/json'},body:options.body===undefined?undefined:JSON.stringify(options.body)});}catch{throw Error('Unable to reach Blog Studio. Check your connection and try again.');}
+ const text=await response.text();let result;
+ try{result=JSON.parse(text);}catch{throw Error('Blog Studio returned an unexpected response'+(response.status>=400?' ('+response.status+')':'')+'. Refresh the page and try again. If this continues, check that the Blog Studio server is running.');}
+ if(!response.ok){if(response.status===401&&accountUser){accountUser=null;$('.editor-shell').hidden=true;$('#loginScreen').hidden=false;$('#loginError').textContent='Your session expired. Sign in again; unsaved work is kept in this tab.';}throw Error(result?.error||'Request failed');}return result;
+}
+
 window.queuePageSave=page=>{if(!accountUser)return;pendingOwnerId=accountUser.id;pendingPages.set(page.id,JSON.parse(JSON.stringify(page)));$('#saved').textContent='Saving…';clearTimeout(saveTimer);saveTimer=setTimeout(()=>flushPages().catch(()=>{}),600);};
 function flushPages(){clearTimeout(saveTimer);saveChain=saveChain.catch(()=>{}).then(async()=>{for(const [id,page] of [...pendingPages]){try{await api('/api/pages/'+id,{method:'PUT',body:page});if(pendingPages.get(id)===page)pendingPages.delete(id);}catch(error){$('#saved').textContent='Not saved — retry Save draft';throw error;}}$('#saved').textContent='All changes saved';});return saveChain;}
 async function signedIn(user){if(pendingPages.size&&pendingOwnerId!==user.id){await api('/api/logout',{method:'POST',body:{}});throw Error('Unsaved work belongs to the previous account. Sign in with that account to save it first.');}accountUser=user;$('#loginScreen').hidden=true;if(user.mustChangePassword){changePassword(true);return;}$('.editor-shell').hidden=false;$('#accountBtn').textContent=user.username;await flushPages();drafts=await api('/api/pages');doc=drafts[0]||{id:uid(),title:'Untitled article',blocks:[]};selected=doc.blocks[0]?.id;$('#title').value=doc.title;renderCanvas();settings();$('#saved').textContent='All changes saved';$('#draftCount').textContent=drafts.length;}
